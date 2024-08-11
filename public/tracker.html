@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, private">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="stylesheet" href="tracker.css">
+    <title>Money Tracker</title>
+</head>
+<body>
+    <header>
+        <h1>Money Tracker</h1>
+        <h2 class="welcome-message">Hello, <span id="name">[User's Name]</span> Ready to track your finances.</h2>
+        <form id="logout-form" action="/logout" method="POST">
+            <button class="logout-button" type="submit">Logout</button>
+        </form>
+    </header>
+
+    <form class="details" id="addRecordForm">
+        <div class="input-section">
+            <label for="category_select">Category:</label>
+            <select name="category_select" id="category_select">
+                <option value="expense">Expense</option>
+                <option value="income">Income</option>
+            </select>
+            <label for="amount_input">Amount:</label>
+            <input type="number" id="amount_input" name="amount_input" required>
+            <label for="info">Info:</label>
+            <input type="text" id="info" name="info" required>
+            <label for="date_input">Date:</label>
+            <input type="date" id="date_input" name="date_input" required>
+            <button class="input-btn" type="submit">Add</button>
+        </div>
+    </form>
+
+    <div class="expenses-list">
+        <h2>Expenses and Incomes List</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Amount</th>
+                    <th>Info</th>
+                    <th>Date</th>
+                    <th>Delete</th>
+                </tr>
+            </thead>
+            <tbody id="expenses_table_body">
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td>Total:</td>
+                    <td id="total-amount"></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/user')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('name').textContent = data.name;
+                })
+                .catch(error => console.error('Error fetching user data:', error));
+
+        });
+        document.getElementById('logout-form').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent the default form submission
+
+            fetch('/logout', {
+        method: 'POST'
+    })
+    .then(response => {
+        if (response.ok) {
+            window.location.href = '/'; // Redirect to index.html after logout
+        } else {
+            console.error('Logout failed:', response.statusText);
+        }
+    })
+    .catch(error => console.error('Error:', error));
+});
+
+        // Fetch and display the user's name
+        fetch('/user')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('user-name').textContent = data.name;
+            })
+            .catch(error => console.error('Error:', error));
+            
+    </script>
+</body>
+</html>

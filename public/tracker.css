@@ -1,0 +1,242 @@
+/* Google Font Link */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+/* Global Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Roboto', sans-serif;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #6f86d6, #48c6ef);
+    padding: 20px;
+    color: #333;
+    transition: background-color 0.3s ease-in-out;
+}
+
+/* Header Section */
+header {
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+h1 {
+    font-size: 36px; /* Adjust font size as needed */
+    color: #fff; /* White color for contrast */
+    text-align: left; /* Align text to the left */
+    margin-bottom: 20px; /* Space below the heading */
+    text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3); /* Adds shadow for depth */
+    animation: fadeInDown 1s ease-in-out; /* Animation for appearance */
+    position: absolute;
+    top: 20px; /* Distance from the top */
+    left: 20px; /* Distance from the left */
+}
+
+.welcome-message {
+    font-size: 28px;
+    color: #fff;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    animation: fadeInDown 1s ease-in-out, textGlow 1.5s infinite alternate;
+    text-align: center;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.logout-button {
+    background-color: #48c6ef;
+    color: #fff;
+    padding: 10px 20px;
+    text-decoration: none;
+    border-radius: 5px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    animation: fadeInDown 1s ease-in-out, textGlow 1.5s infinite alternate;
+    cursor: pointer;
+    position: absolute;
+    top: 20px; /* Distance from the top */
+    right: 20px; /* Distance from the right */
+    width: 83px;
+    height: 40px;
+}
+
+.logout-button:hover {
+    background-color: #6f86d6;
+    transform: translateY(-2px);
+}
+
+/* Form Section */
+.details {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    width: 80%;
+    max-width: 600px;
+    margin-bottom: 30px;
+    animation: fadeInUp 1s ease-in-out;
+}
+
+.form-container h2 {
+    font-size: 28px;
+    color: #48c6ef;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.input-section {
+    display: grid;
+    grid-template-columns: .2fr .8fr;
+    grid-template-rows: auto; /* Ensures rows adjust to content height */
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.input-section label {
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 5px; /* Reduced margin to decrease gap */
+    display: block;
+}
+
+.input-section input, 
+.input-section select {
+    padding: 10px;
+    border-radius: 5px;
+    border: 2px solid #48c6ef;
+    width: 100%;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+    
+}
+
+.input-section input:focus, 
+.input-section select:focus {
+    border-color: #6f86d6;
+    box-shadow: 0 0 8px rgba(111, 134, 214, 0.5);
+}
+
+
+button {
+    padding: 10px 20px;
+    background-color: #48c6ef;
+    border: none;
+    border-radius: 5px;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    width: 100%;
+    align-items: center;
+}
+
+.input-btn{
+    padding: 10px 20px;
+    background-color: #48c6ef;
+    border: none;
+    border-radius: 5px;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    width: 100%;
+    align-items: center;
+
+}
+
+button:hover {
+    background-color: #6f86d6;
+}
+
+/* Expenses List Section */
+.expenses-list {
+    width: 100%;
+    max-width: 800px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    animation: fadeInUp 1.5s ease-in-out;
+}
+
+.expenses-list h2 {
+    font-size: 24px;
+    margin-bottom: 15px;
+    color: #48c6ef;
+    text-align: center;
+}
+
+/* Table Styles */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+table th, table td {
+    padding: 12px;
+    border-bottom: 2px solid #48c6ef;
+    text-align: center;
+    font-size: 16px;
+}
+
+table th {
+    background-color: #6f86d6;
+    color: #fff;
+    font-weight: 500;
+}
+
+table tbody tr {
+    transition: background-color 0.3s ease;
+}
+
+table tbody tr:hover {
+    background-color: rgba(111, 134, 214, 0.1);
+}
+
+#total-amount {
+    font-weight: 700;
+    color: #48c6ef;
+}
+
+/* Animations */
+@keyframes fadeInDown {
+    0% {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    0% {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes textGlow {
+    0% {
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.5), 0 0 20px rgba(255, 255, 255, 0.3);
+    }
+    100% {
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.7), 0 0 30px rgba(255, 255, 255, 0.5);
+    }
+}

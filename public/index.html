@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>Money Tracker</title>
+</head>
+<body>
+    <div id="auth-container">
+        <input type="checkbox" id="flip">
+        <div class="cover">
+            <div class="front">
+                <img src="images/frontImg.jpg" alt="">
+                <div class="text">
+                    <span class="text-1">Every Expense is a <br> New Insight, Every Income a Fresh Start adventure</span>
+                    <span class="text-2">Let's get connected</span>
+                </div>
+            </div>
+            <div class="back">
+                <div class="text">
+                    <span class="text-1">Complete miles of journey <br> with one step</span>
+                    <span class="text-2">Let's get started</span>
+                </div>
+            </div>
+        </div>
+        <div class="forms">
+            <div class="form-content">
+                <!-- Login Form -->
+                <div class="login-form">
+                    <div class="title">Login</div>
+                    <form id="login-form" action="/login" method="POST">
+                        <div class="input-boxes">
+                            <div class="input-box">
+                                <i class="fas fa-envelope"></i>
+                                <input type="text" name="username" placeholder="Enter your username" required>
+                            </div>
+                            <div class="input-box">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" name="password" placeholder="Enter your password" required>
+                            </div>
+                            <div id="login-error" style="color: red; display: none;">Username or password is incorrect</div>
+                            <div class="text"><a href="#">Forgot password?</a></div>
+                            <div class="button input-box">
+                                <input type="submit" value="Submit">
+                            </div>
+                            <div class="text sign-up-text">Don't have an account? <label for="flip">Signup now</label></div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Signup Form -->
+                <div class="signup-form">
+                    <div class="title">Signup</div>
+                    <form id="register-form" action="/register" method="POST">
+                        <div class="input-boxes">
+                            <div class="input-box">
+                                <i class="fas fa-user"></i>
+                                <input type="text" name="name" placeholder="Enter your name" required>
+                            </div>
+                            <div class="input-box">
+                                <i class="fas fa-envelope"></i>
+                                <input type="text" name="username" id="register-username" placeholder="Enter your username" required>
+                                <span id="username-error" style="color: red; display: none;">Username already exists</span>
+                            </div>
+                            <div class="input-box">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" name="password" placeholder="Enter your password" required>
+                            </div>
+                            <div class="button input-box">
+                                <input type="submit" value="Submit">
+                            </div>
+                            <div class="text sign-up-text">Already have an account? <label for="flip">Login now</label></div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Handle registration form submission
+        document.getElementById('register-form').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent default form submission
+
+            const username = document.getElementById('register-username').value;
+            const password = document.querySelector('#register-form input[name="password"]').value;
+            const name = document.querySelector('#register-form input[name="name"]').value;
+
+            // Hide the error message before making the request
+            document.getElementById('username-error').style.display = 'none';
+
+            fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name, username, password })
+            })
+            .then(response => {
+                if (response.ok) {
+                    // If registration successful, redirect or show success message
+                    window.location.href = '/';
+                } else {
+                    return response.json(); // Parse error message
+                }
+            })
+            .then(data => {
+                if (data && data.error) {
+                    // Display error message
+                    document.getElementById('username-error').style.display = 'block';
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+
+        // Handle login form submission
+        document.getElementById('login-form').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent default form submission
+
+            const username = document.querySelector('#login-form input[name="username"]').value;
+            const password = document.querySelector('#login-form input[name="password"]').value;
+
+            // Hide the error message before making the request
+            document.getElementById('login-error').style.display = 'none';
+
+            fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            })
+            .then(response => {
+                if (response.ok) {
+                    // If login successful, redirect or show success message
+                    window.location.href = '/tracker';
+                } else {
+                    // Display error message
+                    document.getElementById('login-error').style.display = 'block';
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    </script>
+</body>
+</html>
