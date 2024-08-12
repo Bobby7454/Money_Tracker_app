@@ -270,7 +270,7 @@ table tbody tr:hover {
         transition: all .5ms;
     }
     button {
-        padding: 10px 20px; /* Adjust padding for smaller screens */
-        font-size: 14px; /* Adjust font size for better fit */
+        padding: 10px 0px; /* Adjust padding for smaller screens */
+        font-size: 12px; /* Adjust font size for better fit */
     }
 }
