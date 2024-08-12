@@ -128,16 +128,17 @@ h1 {
 
 
 button {
-    padding: 10px 20px;
+    padding: 12px 24px; /* Slightly larger padding for better touch on larger screens */
     background-color: #48c6ef;
     border: none;
     border-radius: 5px;
     color: #fff;
-    font-size: 16px;
+    font-size: 16px; /* Default font size */
     cursor: pointer;
     transition: background-color 0.3s ease;
     width: 100%;
-    align-items: center;
+    text-align: center; /* Center text inside button */
+    display: inline-block; /* Allows the button to adapt to its content */
 }
 
 .input-btn{
@@ -267,5 +268,9 @@ table tbody tr:hover {
         width:42;
         height: 20;
         transition: all .5ms;
+    }
+    button {
+        padding: 10px 20px; /* Adjust padding for smaller screens */
+        font-size: 14px; /* Adjust font size for better fit */
     }
 }
