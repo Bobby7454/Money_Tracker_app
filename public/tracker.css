@@ -40,7 +40,7 @@ h1 {
     animation: fadeInDown 1s ease-in-out; /* Animation for appearance */
     position: absolute;
     top: 20px; /* Distance from the top */
-    left: 20px; /* Distance from the left */
+    float: left;
 }
 
 .welcome-message {
@@ -261,9 +261,6 @@ table tbody tr:hover {
     .input-section select {
         padding: 8px;
     }
-    .welcome-message{
-        margin-top: 50px;
-    }
     .logout-button{
         width:42;
         height: 20;
@@ -272,5 +269,15 @@ table tbody tr:hover {
     button {
         padding: 10px 0px; /* Adjust padding for smaller screens */
         font-size: 12px; /* Adjust font size for better fit */
+    }
+}
+@media (max-width: 764px) {
+    .welcome-message{
+        margin-top: 50px;
+    }
+}
+@media (max-width:277px){
+    .welcome-message{
+        margin-top: 100px;
     }
 }
