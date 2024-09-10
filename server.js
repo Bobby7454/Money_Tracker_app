@@ -63,7 +63,7 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-
+// Registration Route
 app.post('/register', async (req, res) => {
     try {
         const { name, email, password } = req.body;
@@ -98,17 +98,18 @@ app.post('/register', async (req, res) => {
         await user.save();
 
         // Create the verification URL
-        const verificationUrl = '${process.env.BASE_URL}verify-email?token=${verificationToken}';
+const verificationUrl = `${process.env.BASE_URL}verify-email?token=${verificationToken}`;
 
-        // Create the email content
-        const emailContent = `
-        <p>Hello ${user.name},</p>
-        <p>Thank you for registering with MyFinance Buddy. To complete your registration, please verify your email by clicking the link below:</p>
-        <p><a href="${verificationUrl}">Click here to verify your email</a></p>
-        <p>If you did not register for this account, please ignore this email.</p>
-        <p>Thank you for choosing MyFinance Buddy!</p>
-        <p>Best regards,<br>The MyFinance Buddy Team</p>
-        `;
+// Create the email content
+const emailContent = `
+<p>Hello ${user.name},</p>
+<p>You requested to resend the verification email. Please verify your email by clicking the link below:</p>
+<p><a href="${verificationUrl}" target="_blank">Click here to verify your email</a></p>
+<p>If you did not request this, please ignore this email.</p>
+<p>Thank you for choosing MyFinance Buddy!</p>
+<p>Best regards,<br>The MyFinance Buddy Team</p>
+`;
+
 
         // Send the email (assuming a sendEmail function exists)
         await sendEmail({
@@ -125,14 +126,19 @@ app.post('/register', async (req, res) => {
 });
 
 
+// Verify email route
 app.get('/verify-email', async (req, res) => {
     try {
         const { token } = req.query;
 
+        if (!token) {
+            return res.status(400).json({ error: 'Token is missing.' });
+        }
+
         // Hash the token from the URL
         const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
-        // Find the user by the hashed token and check if it hasn't expired
+        // Find the user by the hashed token and check if the token hasn't expired
         const user = await User.findOne({
             verificationToken: hashedToken,
             verificationTokenExpires: { $gt: Date.now() },
@@ -142,7 +148,7 @@ app.get('/verify-email', async (req, res) => {
             return res.status(400).json({ error: 'Invalid or expired verification token.' });
         }
 
-        // Verify the user's email
+        // Verify the user's email by setting isVerified to true
         user.isVerified = true;
 
         // Clear the verification token and expiration
@@ -152,9 +158,10 @@ app.get('/verify-email', async (req, res) => {
         // Save the updated user
         await user.save();
 
-        res.json({ message: 'Email verified successfully. You can now log in.' });
+        res.status(200).json({ message: 'Email verified successfully. You can now log in.' });
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        console.error('Verification error:', error);
+        res.status(500).json({ error: 'Server error during verification.' });
     }
 });
 
@@ -329,68 +336,6 @@ async function sendEmail({ to, subject, html }) {
 }
 
 
-// Registration Route
-app.post('/register', async (req, res) => {
-    try {
-        const { name, email, password } = req.body;
-
-        // Check if the email is already registered
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ error: 'Email is already registered.' });
-        }
-
-        // Hash the password before saving
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Create a new user
-        const user = new User({
-            name,
-            email,
-            password: hashedPassword,
-        });
-
-        // Generate a verification token
-        const verificationToken = crypto.randomBytes(20).toString('hex');
-
-        // Hash the token before saving it to the database
-        const hashedToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
-
-        // Set verification token and expiration
-        user.verificationToken = hashedToken;
-        user.verificationTokenExpires = Date.now() + 3600000; // 1 hour from now
-
-        // Save the user to the database
-        await user.save();
-
-        // Create the verification URL
-        const verificationUrl = `${process.env.BASE_URL}verify-email?token=${verificationToken}`;
-
-        // Create the email content
-        const emailContent =`
-        <p>Hello ${user.name},</p>
-        <p>Thank you for registering with MyFinance Buddy. To complete your registration, please verify your email by clicking the link below:</p>
-        <p><a href="${verificationUrl}">Click here to verify your email</a></p>
-        <p>If you did not register for this account, please ignore this email.</p>
-        <p>Thank you for choosing MyFinance Buddy!</p>
-        <p>Best regards,<br>The MyFinance Buddy Team</p>
-        `;
-
-        // Send the email
-        await sendEmail({
-            to: user.email,
-            subject: 'Email Verification - MyFinance Buddy',
-            html: emailContent,
-        });
-
-        res.status(200).json({ message: 'Registration successful. Please check your email to verify your account.' });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Server error during registration' });
-    }
-});
-
-
 // Resend Verification Email Route
 app.post('/resend-verification', async (req, res) => {
     const { email } = req.body;
@@ -406,25 +351,27 @@ app.post('/resend-verification', async (req, res) => {
             // Hash the token before saving it to the database
             const hashedToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
 
-            // Set verification token and expiration
+            // Update the verification token and expiration date
             user.verificationToken = hashedToken;
             user.verificationTokenExpires = Date.now() + 3600000; // 1 hour from now
-            await user.save();
-  
-            // Create the verification URL
-            const verificationUrl = `${process.env.BASE_URL}verify-email?token=${verificationToken};`
 
-            // Create the email content
+            // Save the user with the new verification token
+            await user.save();
+
+            // Create the verification URL
+            const verificationUrl = `${process.env.BASE_URL}verify-email?token=${verificationToken}`;
+
+            // Email content
             const emailContent = `
-            <p>Hello ${user.name},</p>
-            <p>You requested to resend the verification email. Please verify your email by clicking the link below:</p>
-            <p><a href="${verificationUrl}">Click here to verify your email</a></p>
-            <p>If you did not request this, please ignore this email.</p>
-            <p>Thank you for choosing MyFinance Buddy!</p>
-            <p>Best regards,<br>The MyFinance Buddy Team</p>
+                <p>Hello ${user.name},</p>
+                <p>You requested to resend the verification email. Please verify your email by clicking the link below:</p>
+                <p><a href="${verificationUrl}">Click here to verify your email</a></p>
+                <p>If you did not request this, please ignore this email.</p>
+                <p>Thank you for choosing MyFinance Buddy!</p>
+                <p>Best regards,<br>The MyFinance Buddy Team</p>
             `;
 
-            // Send the email
+            // Send the verification email
             await sendEmail({
                 to: user.email,
                 subject: 'Email Verification - MyFinance Buddy',
@@ -432,35 +379,17 @@ app.post('/resend-verification', async (req, res) => {
             });
 
             res.status(200).json({ message: 'Verification email resent. Please check your inbox.' });
+        } else if (user.isVerified) {
+            res.status(400).json({ error: 'This email is already verified.' });
         } else {
-            res.status(400).json({ error: 'Email not found or already verified.' });
+            res.status(404).json({ error: 'No account found with this email.' });
         }
-    } catch (err) {
-        res.status(500).json({ error: 'An error occurred. Please try again later.' });
+    } catch (error) {
+        console.error('Error resending verification email:', error.message);
+        res.status(500).json({ error: 'Error resending verification email.' });
     }
 });
 
-
-  // Verify email route
-  app.get('/verify-email', async (req, res) => {
-      const { token } = req.query;
-      
-      try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET);
-          const user = await User.findOne({ email: decoded.email });
-          
-          if (user && user.verificationToken === token) {
-              user.isVerified = true;
-              user.verificationToken = null;
-              await user.save();
-              res.status(200).send('Email verified successfully!');
-          } else {
-              res.status(400).send('Invalid verification token');
-          }
-      } catch (error) {
-          res.status(400).send('Invalid or expired token');
-      }
-  });
 
 
 // Login Route
