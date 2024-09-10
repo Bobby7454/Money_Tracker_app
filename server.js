@@ -98,7 +98,7 @@ app.post('/register', async (req, res) => {
         await user.save();
 
         // Create the verification URL
-        const verificationUrl = 'http://localhost:3000/verify-email?token=${verificationToken}';
+        const verificationUrl = '${process.env.BASE_URL}verify-email?token=${verificationToken}';
 
         // Create the email content
         const emailContent = `
@@ -186,7 +186,7 @@ app.post('/forgot-password', async (req, res) => {
         await user.save();
 
         // Create the email content with the reset link (including the unhashed token)
-        const resetUrl = `http://localhost:3000/reset-password?token=${resetToken}`;
+        const resetUrl = `${process.env.BASE_URL}reset-password?token=${resetToken}`;
 
         const emailContent =` 
         <p>Hello ${user.name},</p>
@@ -364,7 +364,7 @@ app.post('/register', async (req, res) => {
         await user.save();
 
         // Create the verification URL
-        const verificationUrl = `http://localhost:3000/verify-email?token=${verificationToken}`;
+        const verificationUrl = `${process.env.BASE_URL}verify-email?token=${verificationToken}`;
 
         // Create the email content
         const emailContent =`
@@ -412,7 +412,7 @@ app.post('/resend-verification', async (req, res) => {
             await user.save();
   
             // Create the verification URL
-            const verificationUrl = `http://localhost:3000/verify-email?token=${verificationToken};`
+            const verificationUrl = `${process.env.BASE_URL}verify-email?token=${verificationToken};`
 
             // Create the email content
             const emailContent = `
