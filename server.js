@@ -3,10 +3,13 @@ const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 require('dotenv').config();
 const path = require('path');
 
 const app = express();
+const BASE_URL = process.env.BASE_URL;
 const username = process.env.MONGODB_USERNAME;
 const password = process.env.MONGODB_PASSWORD;
 const dbName = 'Money-tracker';
@@ -14,69 +17,476 @@ const uri = `mongodb+srv://${username}:${password}@cluster0.n9ynjcx.mongodb.net/
 
 // Connect to MongoDB
 mongoose.connect(uri)
-  .then(() => console.log('MongoDB connected'))
-  .catch((error) => console.error('MongoDB connection error:', error));
+    .then(() => console.log('MongoDB connected'))
+    .catch((error) => console.error('MongoDB connection error:', error));
 
 // Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    next();
+});
 app.use(session({
     secret: 'your_secret_key',
     resave: false,
     saveUninitialized: true,
+    rolling: true,
     cookie: {
         httpOnly: true,
-        secure: false, // Set to true if using HTTPS
-        maxAge: 60000 // Set the cookie expiry time (in milliseconds)
+        secure: false,
+        maxAge: 3600000
     }
 }));
 
+
 // User Schema
 const userSchema = new mongoose.Schema({
-  name: String,
-  username: String,
-  password: String,
-  records: [{
-      category: String,
-      amount: Number,
-      info: String,
-      date: Date
-  }]
+    name: String,
+    email: String,
+    password: String,
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
+    isVerified: { type: Boolean, default: false },
+    verificationToken: String,
+    verificationTokenExpires: Date,
+    records: [{
+        category: String,
+        amount: Number,
+        info: String,
+        date: Date
+    }]
 });
 
 const User = mongoose.model('User', userSchema);
 
+
+app.post('/register', async (req, res) => {
+    try {
+        const { name, email, password } = req.body;
+
+        // Check if the email is already registered
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ error: 'Email is already registered.' });
+        }
+
+        // Hash the password before saving (assume bcrypt is used for hashing)
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create a new user
+        const user = new User({
+            name,
+            email,
+            password: hashedPassword, // Save the hashed password
+        });
+
+        // Generate a verification token
+        const verificationToken = crypto.randomBytes(20).toString('hex');
+
+        // Hash the token before saving it to the database
+        const hashedToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
+
+        // Set verification token and expiration
+        user.verificationToken = hashedToken;
+        user.verificationTokenExpires = Date.now() + 3600000; // 1 hour from now
+
+        // Save the user to the database
+        await user.save();
+
+        // Create the verification URL
+        const verificationUrl = 'http://localhost:3000/verify-email?token=${verificationToken}';
+
+        // Create the email content
+        const emailContent = `
+        <p>Hello ${user.name},</p>
+        <p>Thank you for registering with MyFinance Buddy. To complete your registration, please verify your email by clicking the link below:</p>
+        <p><a href="${verificationUrl}">Click here to verify your email</a></p>
+        <p>If you did not register for this account, please ignore this email.</p>
+        <p>Thank you for choosing MyFinance Buddy!</p>
+        <p>Best regards,<br>The MyFinance Buddy Team</p>
+        `;
+
+        // Send the email (assuming a sendEmail function exists)
+        await sendEmail({
+            to: user.email,
+            subject: 'Email Verification - MyFinance Buddy',
+            html: emailContent,
+        });
+
+        res.status(200).json({ message: 'Registration successful. Please check your email to verify your account.' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Server error during registration' });
+    }
+});
+
+
+app.get('/verify-email', async (req, res) => {
+    try {
+        const { token } = req.query;
+
+        // Hash the token from the URL
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+        // Find the user by the hashed token and check if it hasn't expired
+        const user = await User.findOne({
+            verificationToken: hashedToken,
+            verificationTokenExpires: { $gt: Date.now() },
+        });
+
+        if (!user) {
+            return res.status(400).json({ error: 'Invalid or expired verification token.' });
+        }
+
+        // Verify the user's email
+        user.isVerified = true;
+
+        // Clear the verification token and expiration
+        user.verificationToken = undefined;
+        user.verificationTokenExpires = undefined;
+
+        // Save the updated user
+        await user.save();
+
+        res.json({ message: 'Email verified successfully. You can now log in.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+
+// Function to generate a reset token
+function generateResetToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+// Forgot Password Route
+app.post('/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ error: 'No user found with that email address.' });
+        }
+
+        // Generate the reset token
+        const resetToken = generateResetToken();
+
+        // Hash the token before saving it to the database
+        const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+        // Save the hashed token and its expiration date to the user document
+        user.resetPasswordToken = hashedToken;
+        user.resetPasswordExpires = Date.now() + 3600000; // 1 hour from now
+        await user.save();
+
+        // Create the email content with the reset link (including the unhashed token)
+        const resetUrl = `http://localhost:3000/reset-password?token=${resetToken}`;
+
+        const emailContent =` 
+        <p>Hello ${user.name},</p>
+        <p>We received a request to reset the password for your MyFinance Buddy account associated with this email address. If you made this request, please use the link below to reset your password.</p>
+        <p><strong>Reset Token:</strong>${resetToken}</p>
+        <p><a href="${resetUrl}">Click here to reset your password</a></p>
+        <p>If you did not request a password reset, please ignore this email or contact our support team.</p>
+        <p>Thank you for choosing MyFinance Buddy!</p>
+        <p>Best regards,<br>The MyFinance Buddy Team</p>
+        `;
+
+
+        // Send the email
+        await sendResetEmail(user.email, emailContent);
+
+        // If successful, respond with success message
+        res.status(200).json({ message: 'Password reset email sent.' });
+    } catch (error) {
+        console.error('Error during password reset:', error.message);
+        res.status(500).json({ error: 'Error during password reset' });
+    }
+});
+
+
+
+// Function to send the reset email
+async function sendResetEmail(userEmail, emailContent) {
+    try {
+        let transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 587,
+            secure: false,
+            auth: {
+                user: process.env.EMAIL,
+                pass: process.env.EMAIL_PASSWORD
+            }
+        });
+
+        let mailOptions = {
+            from: `MyFinance Buddy" <${process.env.EMAIL}>`,
+            to: userEmail,
+            subject: 'Password Reset Request for Your MyFinance Buddy Account',
+            html: emailContent,
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log('Password reset email sent.');
+    } catch (error) {
+        console.error('Error sending email:', error.message);
+        throw new Error('Email could not be sent.');
+    }
+}
+
+// Serve Forgot Password Page
+app.get('/forgot-password', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'forgot-password.html'));
+});
+
+// Serve Reset Password Page
+// Serve Reset Password Page
+app.get('/reset-password', (req, res) => {
+    const filePath = path.join(__dirname, 'public', 'reset-password.html');
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('Error sending file:', err);
+            res.status(500).send('Server error');
+        }
+    });
+});
+
+console.log(path.join(__dirname, 'public', 'reset-password.html'));
+
+
+// Handle Password Reset Form Submission
+// Reset Password Route
+app.post('/reset-password', async (req, res) => {
+    const { new_password, token } = req.body;
+
+    if (!token) {
+        return res.status(400).send('Invalid or missing token.');
+    }
+
+    try {
+        // Hash the received token to match it with the stored hashed token
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+        console.log('Received token (hashed):', hashedToken);
+
+        // Find the user with the matching hashed token and check expiration
+        const user = await User.findOne({
+            resetPasswordToken: hashedToken,
+            resetPasswordExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            console.log('No user found with this token or token has expired.');
+            return res.status(400).send('Token is invalid or has expired.');
+        }
+
+        // If token is valid, reset the password
+        const hashedPassword = await bcrypt.hash(new_password, 10);
+        user.password = hashedPassword;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+
+        await user.save();
+        res.status(200).send('Password has been reset successfully.');
+    } catch (err) {
+        console.error('Error during password reset:', err);
+        res.status(500).send('Server error, please try again.');
+    }
+});
+
+
+// Function to send email
+async function sendEmail({ to, subject, html }) {
+    try {
+        let transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 587,
+            secure: false,
+            auth: {
+                user: process.env.EMAIL,
+                pass: process.env.EMAIL_PASSWORD
+            }
+        });
+
+        let mailOptions = {
+            from: `MyFinance Buddy" <${process.env.EMAIL}>`,
+            to,
+            subject,
+            html,
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log('Email sent successfully');
+    } catch (error) {
+        console.error('Error sending email:', error.message);
+        throw new Error('Email could not be sent.');
+    }
+}
+
+
 // Registration Route
 app.post('/register', async (req, res) => {
-  const { name, username, password } = req.body;
+    try {
+        const { name, email, password } = req.body;
 
-  try {
-      const existingUser = await User.findOne({ username });
-      if (existingUser) {
-          return res.status(400).json({ error: 'Username already exists' });
-      }
+        // Check if the email is already registered
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ error: 'Email is already registered.' });
+        }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const newUser = new User({ name, username, password: hashedPassword });
-      await newUser.save();
-      res.status(200).json({ message: 'User registered successfully' });
-  } catch (error) {
-      console.error('Error registering user:', error);
-      res.status(500).send('Error registering user');
-  }
+        // Hash the password before saving
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create a new user
+        const user = new User({
+            name,
+            email,
+            password: hashedPassword,
+        });
+
+        // Generate a verification token
+        const verificationToken = crypto.randomBytes(20).toString('hex');
+
+        // Hash the token before saving it to the database
+        const hashedToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
+
+        // Set verification token and expiration
+        user.verificationToken = hashedToken;
+        user.verificationTokenExpires = Date.now() + 3600000; // 1 hour from now
+
+        // Save the user to the database
+        await user.save();
+
+        // Create the verification URL
+        const verificationUrl = `http://localhost:3000/verify-email?token=${verificationToken}`;
+
+        // Create the email content
+        const emailContent =`
+        <p>Hello ${user.name},</p>
+        <p>Thank you for registering with MyFinance Buddy. To complete your registration, please verify your email by clicking the link below:</p>
+        <p><a href="${verificationUrl}">Click here to verify your email</a></p>
+        <p>If you did not register for this account, please ignore this email.</p>
+        <p>Thank you for choosing MyFinance Buddy!</p>
+        <p>Best regards,<br>The MyFinance Buddy Team</p>
+        `;
+
+        // Send the email
+        await sendEmail({
+            to: user.email,
+            subject: 'Email Verification - MyFinance Buddy',
+            html: emailContent,
+        });
+
+        res.status(200).json({ message: 'Registration successful. Please check your email to verify your account.' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Server error during registration' });
+    }
 });
+
+
+// Resend Verification Email Route
+app.post('/resend-verification', async (req, res) => {
+    const { email } = req.body;
+  
+    try {
+        // Find the user by email
+        const user = await User.findOne({ email });
+  
+        if (user && !user.isVerified) {
+            // Generate a new verification token
+            const verificationToken = crypto.randomBytes(20).toString('hex');
+
+            // Hash the token before saving it to the database
+            const hashedToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
+
+            // Set verification token and expiration
+            user.verificationToken = hashedToken;
+            user.verificationTokenExpires = Date.now() + 3600000; // 1 hour from now
+            await user.save();
+  
+            // Create the verification URL
+            const verificationUrl = `http://localhost:3000/verify-email?token=${verificationToken};`
+
+            // Create the email content
+            const emailContent = `
+            <p>Hello ${user.name},</p>
+            <p>You requested to resend the verification email. Please verify your email by clicking the link below:</p>
+            <p><a href="${verificationUrl}">Click here to verify your email</a></p>
+            <p>If you did not request this, please ignore this email.</p>
+            <p>Thank you for choosing MyFinance Buddy!</p>
+            <p>Best regards,<br>The MyFinance Buddy Team</p>
+            `;
+
+            // Send the email
+            await sendEmail({
+                to: user.email,
+                subject: 'Email Verification - MyFinance Buddy',
+                html: emailContent,
+            });
+
+            res.status(200).json({ message: 'Verification email resent. Please check your inbox.' });
+        } else {
+            res.status(400).json({ error: 'Email not found or already verified.' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: 'An error occurred. Please try again later.' });
+    }
+});
+
+
+  // Verify email route
+  app.get('/verify-email', async (req, res) => {
+      const { token } = req.query;
+      
+      try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          const user = await User.findOne({ email: decoded.email });
+          
+          if (user && user.verificationToken === token) {
+              user.isVerified = true;
+              user.verificationToken = null;
+              await user.save();
+              res.status(200).send('Email verified successfully!');
+          } else {
+              res.status(400).send('Invalid verification token');
+          }
+      } catch (error) {
+          res.status(400).send('Invalid or expired token');
+      }
+  });
+
 
 // Login Route
 app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
-  const user = await User.findOne({ username });
-  if (user && await bcrypt.compare(password, user.password)) {
-      req.session.user = user;
-      res.redirect('/tracker');
-  } else {
-      res.status(400).send('Invalid credentials'); 
-  }
+    try {
+        const { email, password } = req.body;
+
+        // Find the user by email
+        const user = await User.findOne({ email });
+
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({ error: 'Invalid email or password.' });
+        }
+
+        // Check if the email is verified
+        if (!user.isVerified) {
+            return res.status(403).json({ error: 'Please verify your email before logging in.' });
+        }
+
+        // Set user info in session
+        req.session.user = user;
+
+        res.json({ message: 'Login successful.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // Logout Route

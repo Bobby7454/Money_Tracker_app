@@ -3,10 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-store" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <link rel="stylesheet" href="style.css">
     <title>Money Tracker</title>
 </head>
 <body>
+    
     <div id="auth-container">
         <input type="checkbox" id="flip">
         <div class="cover">
@@ -33,14 +37,14 @@
                         <div class="input-boxes">
                             <div class="input-box">
                                 <i class="fas fa-envelope"></i>
-                                <input type="text" name="username" placeholder="Enter your username" required>
+                                <input type="email" name="email" placeholder="Enter your email" required>
                             </div>
                             <div class="input-box">
                                 <i class="fas fa-lock"></i>
                                 <input type="password" name="password" placeholder="Enter your password" required>
                             </div>
                             <div id="login-error" style="color: red; display: none;">Username or password is incorrect</div>
-                            <div class="text"><a href="#">Forgot password?</a></div>
+                            <div class="text"><a href="/forgot-password">Forgot password?</a></div>
                             <div class="button input-box">
                                 <input type="submit" value="Submit">
                             </div>
@@ -48,7 +52,6 @@
                         </div>
                     </form>
                 </div>
-
                 <!-- Signup Form -->
                 <div class="signup-form">
                     <div class="title">Signup</div>
@@ -60,12 +63,12 @@
                             </div>
                             <div class="input-box">
                                 <i class="fas fa-envelope"></i>
-                                <input type="text" name="username" id="register-username" placeholder="Enter your username" required>
-                                <span id="username-error" style="color: red; display: none;">Username already exists</span>
+                                <input type="email" name="email" id="register-email" placeholder="Enter your email" required>
+                                <span id="email-error" style="color: red; display: none;">Email already exists</span>
                             </div>
                             <div class="input-box">
                                 <i class="fas fa-lock"></i>
-                                <input type="password" name="password" placeholder="Enter your password" required>
+                                <input type="password" name="password" placeholder="Enter your password" minlength="8">
                             </div>
                             <div class="button input-box">
                                 <input type="submit" value="Submit">
@@ -77,70 +80,210 @@
             </div>
         </div>
     </div>
+
+    <!-- Verify Email Modal -->
+    <div id="verify-email-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <p id="verify-email-message">Email sent to the registered email, please verify.</p>
+            <button id="resend-verification" data-email="" style="display: none;">Resend Verification Email</button>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="error-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <p id="error-message">Username or password is incorrect</p>
+        </div>
+    </div>
+    <div class="loader-container" id="loader-container">
+        <div class="center">
+            <div class="loader">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+              </div>
+        </div>
+    </div>
+
     <script>
-        // Handle registration form submission
-        document.getElementById('register-form').addEventListener('submit', function(event) {
-            event.preventDefault(); // Prevent default form submission
+        document.addEventListener('DOMContentLoaded', function () {
+            const loader = document.getElementById('loader-container');
+            const verifyEmailModal = document.getElementById('verify-email-modal');
+            const errorModal = document.getElementById('error-modal');
+            const closeButtons = document.querySelectorAll('.close');
+            const resendButton = document.getElementById('resend-verification');
 
-            const username = document.getElementById('register-username').value;
-            const password = document.querySelector('#register-form input[name="password"]').value;
-            const name = document.querySelector('#register-form input[name="name"]').value;
+            // Show loader function
+            function showLoader() {
+                loader.style.display = 'block';
+            }
 
-            // Hide the error message before making the request
-            document.getElementById('username-error').style.display = 'none';
+            // Hide loader function
+            function hideLoader() {
+                loader.style.display = 'none';
+            }
 
-            fetch('/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ name, username, password })
-            })
-            .then(response => {
-                if (response.ok) {
-                    // If registration successful, redirect or show success message
-                    window.location.href = '/';
-                } else {
-                    return response.json(); // Parse error message
+            // Handle registration form submission
+            document.getElementById('register-form').addEventListener('submit', function(event) {
+                event.preventDefault(); 
+
+                const email = document.getElementById('register-email').value;
+                const password = document.querySelector('#register-form input[name="password"]').value;
+                const name = document.querySelector('#register-form input[name="name"]').value;
+
+                if (!email || !password || !name) {
+                    alert('Please fill all required fields.');
+                    return;
                 }
-            })
-            .then(data => {
-                if (data && data.error) {
-                    // Display error message
-                    document.getElementById('username-error').style.display = 'block';
+
+                showLoader();
+
+                document.getElementById('email-error').style.display = 'none';
+
+                fetch('/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, email, password })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    hideLoader();
+                    if (data && data.error) {
+                        document.getElementById('email-error').style.display = 'block';
+                    } else {
+                        verifyEmailModal.style.display = 'block';
+                        document.getElementById('verify-email-message').textContent = 'Email sent to the registered email, please verify.';
+                        resendButton.style.display = 'none';
+                        resendButton.setAttribute('data-email', email);
+                    }
+                })
+                .catch(error => {
+                    hideLoader();
+                    console.error('Error:', error);
+                });
+            });
+
+            // Handle login form submission
+            document.getElementById('login-form').addEventListener('submit', function(event) {
+                event.preventDefault(); 
+
+                const email = document.querySelector('#login-form input[name="email"]').value;
+                const password = document.querySelector('#login-form input[name="password"]').value;
+
+                if (!email || !password) {
+                    alert('Please fill all required fields.');
+                    return;
                 }
-            })
-            .catch(error => console.error('Error:', error));
+
+                showLoader();
+
+                fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                })
+                .then(response => response.json().then(data => ({status: response.status, body: data})))
+                .then(({status, body}) => {
+                    hideLoader();
+                    if (status === 200) {
+                        window.location.href = '/tracker';
+                        clearLoginForm();
+                    } else if (status === 403) {
+                        verifyEmailModal.style.display = 'block';
+                        document.getElementById('verify-email-message').textContent = 'Please verify your email before logging in. Check your inbox for the verification link.';
+                        resendButton.style.display = 'inline-block';  // Show resend button only if necessary
+                        resendButton.setAttribute('data-email', email);
+                    } else {
+                        errorModal.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    hideLoader();
+                    console.error('Error:', error);
+                });
+            });
+
+            // Handle resend verification button click
+            resendButton.addEventListener('click', function () {
+                const email = this.getAttribute('data-email');
+                
+                if (!email) {
+                    alert('Email is not set.');
+                    return;
+                }
+
+                showLoader();
+
+                fetch('/resend-verification', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    hideLoader();
+                    if (data.message) {
+                        alert(data.message);
+                    } else if (data.error) {
+                        alert(data.error);
+                    } else {
+                        alert('Unexpected response.');
+                    }
+                })
+                .catch(error => {
+                    hideLoader();
+                    console.error('Error:', error);
+                    alert('An error occurred: ' + error.message);
+                });
+            });
+
+            // Close modals and clear forms when clicking on <span> (x)
+            closeButtons.forEach(button => {
+                button.onclick = function() {
+                    verifyEmailModal.style.display = 'none';
+                    errorModal.style.display = 'none';
+                    resendButton.style.display = 'none';  // Hide the resend button when closing the modal
+                    clearForm();  // Clear the registration form when the modal is closed
+                }
+                                // Function to clear the registration form
+                                function clearForm() {
+                    document.getElementById('register-form').reset();
+                    document.getElementById('email-error').style.display = 'none';
+                    hideLoader();
+                }
+
+                // Function to clear the login form
+                function clearLoginForm() {
+                    document.getElementById('login-form').reset();
+                    hideLoader();
+                }
+
+                // Close modals when clicking outside the modal content
+                window.onclick = function(event) {
+                    if (event.target === verifyEmailModal) {
+                        verifyEmailModal.style.display = 'none';
+                        resendButton.style.display = 'none';
+                        clearForm();
+                    } else if (event.target === errorModal) {
+                        errorModal.style.display = 'none';
+                    }
+                }
+            });
         });
-
-        // Handle login form submission
-        document.getElementById('login-form').addEventListener('submit', function(event) {
-            event.preventDefault(); // Prevent default form submission
-
-            const username = document.querySelector('#login-form input[name="username"]').value;
-            const password = document.querySelector('#login-form input[name="password"]').value;
-
-            // Hide the error message before making the request
-            document.getElementById('login-error').style.display = 'none';
-
-            fetch('/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, password })
-            })
-            .then(response => {
-                if (response.ok) {
-                    // If login successful, redirect or show success message
-                    window.location.href = '/tracker';
-                } else {
-                    // Display error message
-                    document.getElementById('login-error').style.display = 'block';
-                }
-            })
-            .catch(error => console.error('Error:', error));
-        });
-    </script>
+        </script>
+    </div>
 </body>
 </html>
